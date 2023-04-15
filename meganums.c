@@ -1,58 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-
-#define MEGA_BIT_SIZE 128
-#define MEGA_BIT2_SIZE 64
-#define MEGA_NYBBLE_SIZE 32
-#define MEGA_BYTE_SIZE 16
-#define MEGA_WORD_SIZE 8
-#define MEGA_DWORD_SIZE 4
-
-/*index:
-	number: 1111 0100 0010 1100
-	        \  / \  / \  / \  /
-	         \/   \/   \/   \/
-	index:   3    2    1    0
-	shift: index * nybbles
-	       3*4
-	       2*4
-	       1*4
-	       0*4
-*/
-#define SET_NYBBLE(number, index, mask) number = ((number) | ((mask) << (index*4)))
-/*printf("%llu, %llu, %llu", number, index, mask)*/
-
-typedef struct TagMEGA {
-	/*limit (0, 170141183460469231731687303715884105727)*/
-	/*1bit sign_1_bit; *//*most significant digit is sign bit*/
-	unsigned long long MS_64_bit; /*most significant 63 bit*/
-	unsigned long long LS_64_bit; /*least significant 64 bit*/
-} MEGA;
-
-typedef struct TagUMEGA {
-	/*limit (0, 340282366920938463463374607431768211455)(39 digit)*/
-	unsigned long long MS_64_bit; /*most significant 64 bit (0, 18446744073709551615)(20 digit)*/
-	unsigned long long LS_64_bit; /*least significant 64 bit (0, 18446744073709551615)(20 digit)*/
-} UMEGA;
-
-int get_hex_int(char );
-void _PrintBinary(unsigned long long *, int);
-void umega_printx(UMEGA *);
-void umega_assign(UMEGA *, const char *);
-#define bits(y) (sizeof(y)*8)
-#define PRINTBIN(i) _PrintBinary(((unsigned long long *)(&(i))), bits(i))
-
-
-
-void _PrintBinary(unsigned long long *numb, int bitleng)
-{
-	for (int i = bitleng - 1; i >= 0; --i)
-		printf("%llu", (*numb) >> i & 0x1);
-	printf("\n");
-}
-
-
+#include "meganums.h"
 
 int get_hex_int(char ch)
 {
@@ -88,45 +34,49 @@ void umega_assign(UMEGA *umega_num, const char *hex_num)
 	else if (leng_hex_num <= MEGA_BYTE_SIZE) {
 		/*assign least significant 64 bit */
 		for (i = 0; i < leng_hex_num; ++i) {
-			SET_NYBBLE(umega_num->LS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+			SET_NYBBLE(umega_num->LS_64_bit, i, get_hex_int(hex_num[leng_hex_num -i -1]));
 			/*PRINTBIN(umega_num->LS_64_bit);*/
 		}
 	}
 	else if (leng_hex_num > MEGA_BYTE_SIZE) {
 		/*assign least significant 64 bit */
 		for (i = 0; i < MEGA_BYTE_SIZE; ++i) {
-			SET_NYBBLE(umega_num->LS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+			SET_NYBBLE(umega_num->LS_64_bit, i, get_hex_int(hex_num[leng_hex_num -i -1]));
 		}
 		/*assign most significant 64 bit */
 		for (; i < leng_hex_num; ++i) {
-			SET_NYBBLE(umega_num->MS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+			SET_NYBBLE(umega_num->MS_64_bit, i, get_hex_int(hex_num[leng_hex_num -i -1]));
 		}
 	}
 }
 
-int main(void)
+void umega_add(UMEGA *x, UMEGA *y)
 {
-	/*
-	char *hex_nibles = "0123546789ABCDEF";
+	unsigned long long c, s, a, b, sum_LS, sum_MS;
+	unsigned long long mask = 0x1;
 	int i;
-	for (i = 0; i < 16; ++i) {
-		printf("%d\n", get_hex_int(hex_nibles[i]));
+	sum_LS = sum_MS = 0x0;
+
+	for (s = 0, i = 63; i >= 0; --i) {
+		a = (x->LS_64_bit & mask) >> (63 - i); // a0, a1, ... a63 dizisindeki i numaralı basamak
+		b = (y->LS_64_bit & mask) >> (63 - i); // b0, b1, ... b63 dizisindeki i numaralı basamak
+		c = a ^ b; 
+		sum_LS |= (c ^ s) << (63 - i);
+		s = a & b; // elde var
+		mask <<= 1;
 	}
-	*/
-	/*
-	unsigned short x = 0xf402;
-	PRINTBIN(x);
-	SET_NYBBLE(x, 1, 0xa);
-	PRINTBIN(x);
-	SET_NYBBLE(x, 1, 0xd);
-	PRINTBIN(x);
-	*/
-	UMEGA devbirsayi;
-	umega_assign(&devbirsayi, "bf48374fa7c7dee02c");
-	/*           00000000000000BF48374FA7C7DEE02C*/
-	umega_printx(&devbirsayi);
 
-	return 0;
+	mask = 0x1;
+
+	for (i = 63; i >= 0; --i) {
+		a = (x->MS_64_bit & mask) >> (63 - i); // a0, a1, ... a63 dizisindeki i numaralı basamak
+		b = (y->MS_64_bit & mask) >> (63 - i); // b0, b1, ... b63 dizisindeki i numaralı basamak
+		c = a ^ b; 
+		sum_MS |= (c ^ s) << (63 - i);
+		s = a & b; // elde var
+		mask <<= 1;
+	}
+	x->LS_64_bit = sum_LS;
+	x->MS_64_bit = sum_MS;
 }
-
 
