@@ -21,11 +21,12 @@
 	       0*4
 */
 #define SET_NYBBLE(number, index, mask) number = ((number) | ((mask) << (index*4)))
+/*printf("%llu, %llu, %llu", number, index, mask)*/
 
 typedef struct TagMEGA {
 	/*limit (0, 170141183460469231731687303715884105727)*/
 	/*1bit sign_1_bit; *//*most significant digit is sign bit*/
-	unsigned long long MS_63_bit; /*most significant 63 bit*/
+	unsigned long long MS_64_bit; /*most significant 63 bit*/
 	unsigned long long LS_64_bit; /*least significant 64 bit*/
 } MEGA;
 
@@ -37,17 +38,12 @@ typedef struct TagUMEGA {
 
 int get_hex_int(char );
 void _PrintBinary(unsigned long long *, int);
-#define bits(y) (sizeof(y)*8)
-#define PRINTBIN(i) _PrintBinary(((unsigned long long *)(&(i))), bits(i))
-unsigned long long ptrplus(void *);
 void umega_printx(UMEGA *);
 void umega_assign(UMEGA *, const char *);
+#define bits(y) (sizeof(y)*8)
+#define PRINTBIN(i) _PrintBinary(((unsigned long long *)(&(i))), bits(i))
 
-unsigned long long ptrplus(void *address)
-{
-	unsigned long long int_address = (unsigned long long) address;
-	return int_address + 1;
-}
+
 
 void _PrintBinary(unsigned long long *numb, int bitleng)
 {
@@ -72,15 +68,15 @@ int get_hex_int(char ch)
 /* Umega functions */
 void umega_printx(UMEGA *umega_num)
 {
-	printf("%032llX", umega_num->MS_64_bit);
-	printf("%032llX\n", umega_num->LS_64_bit);
+	printf("%016llX", umega_num->MS_64_bit);
+	printf("%016llX\n", umega_num->LS_64_bit);
 }
 
 
 void umega_assign(UMEGA *umega_num, const char *hex_num)
 {
 	size_t leng_hex_num = strlen(hex_num);
-	int i, mask_buff;
+	int i;
 
 	umega_num->MS_64_bit = 0;
 	umega_num->LS_64_bit = 0;
@@ -89,13 +85,22 @@ void umega_assign(UMEGA *umega_num, const char *hex_num)
 		return;
 	
         }
-	else if (leng_hex_num <= 16) {
+	else if (leng_hex_num <= MEGA_BYTE_SIZE) {
+		/*assign least significant 64 bit */
 		for (i = 0; i < leng_hex_num; ++i) {
-			SET_NYBBLE(umega_num->LS_64_bit, i, get_hex_int(hex_num[leng_hex_num -i -1]));
+			SET_NYBBLE(umega_num->LS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+			/*PRINTBIN(umega_num->LS_64_bit);*/
 		}
 	}
-	else if (leng_hex_num > 16) {
-		return;
+	else if (leng_hex_num > MEGA_BYTE_SIZE) {
+		/*assign least significant 64 bit */
+		for (i = 0; i < MEGA_BYTE_SIZE; ++i) {
+			SET_NYBBLE(umega_num->LS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+		}
+		/*assign most significant 64 bit */
+		for (; i < leng_hex_num; ++i) {
+			SET_NYBBLE(umega_num->MS_64_bit, (unsigned long long)i, (unsigned long long)get_hex_int(hex_num[leng_hex_num -i -1]));
+		}
 	}
 }
 
@@ -117,7 +122,8 @@ int main(void)
 	PRINTBIN(x);
 	*/
 	UMEGA devbirsayi;
-	umega_assign(&devbirsayi, "f402");
+	umega_assign(&devbirsayi, "bf48374fa7c7dee02c");
+	/*           00000000000000BF48374FA7C7DEE02C*/
 	umega_printx(&devbirsayi);
 
 	return 0;
